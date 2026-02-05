@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "180429637069",
+    "project_id": "braita-cf3e7",
+    "storage_bucket": "braita-cf3e7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:180429637069:android:f27f5137b4983b3d57f084",
+        "android_client_info": {
+          "package_name": "com.xendrio.braita"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATRd9b-fP4TXnmA-VE5RsJUQjukQrlnhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
