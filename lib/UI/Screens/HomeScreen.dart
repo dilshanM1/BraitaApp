@@ -4,9 +4,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:braita_new/UI/Widgets/BottomNavigationBar.dart';
 import 'package:braita_new/Services/DatabaseService.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../Ads/banner_ad_manager.dart';
 import 'ExamResultsScreen.dart';
 import 'PastpapersScreen.dart';
 import 'ProfileScreen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,17 +31,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- NEW: Database Listener for Updates ---
   void _checkUpdateStatus() {
-    // 1. Path  database structure
+    // Hardcoded current app version
+    const int currentAppVersion = 1; //change version step 1
+
     _dbRef.child('Updates').onValue.listen((event) {
       if (!mounted) return;
 
       final data = event.snapshot.value as Map?;
       if (data != null) {
         int status = data['Avalable'] ?? 0;
+        int latestVersion = data['Version'] ?? 1; //change version step 2
 
-        debugPrint("Update status received: $status");
+        debugPrint("Update status: $status, Latest Version: $latestVersion");
 
-        if (status == 1 && !_dialogShown) {
+        // Logic: Show dialog ONLY if Available is 1 AND DB version is higher than current app version
+        if (status == 1 && latestVersion > currentAppVersion && !_dialogShown) {
           setState(() => _dialogShown = true);
           _showUpdateDialog();
         }
@@ -61,7 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const BottomNavigation(currentIndex: 0),
+      bottomNavigationBar: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MyBannerAdWidget(), // Just one import, one line of code!
+          BottomNavigation(currentIndex: 0),
+        ],
+      ),
       body: _deviceId == null
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF9C27B0)))
@@ -71,12 +83,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Default placeholders to prevent the "Spinning Wheel" problem
                 int correctCount = 0;
                 int wrongCount = 0;
+                int myTotalPoints = 0;
 
                 if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
                   Map userData = Map<dynamic, dynamic>.from(
                       snapshot.data!.snapshot.value as Map);
                   correctCount = userData['TotalCorrectAnsweredQuizCount'] ?? 0;
                   wrongCount = userData['TotalWrongAnsweredQuizCount'] ?? 0;
+                  myTotalPoints = userData['MyPoints'] ?? 0;
                 }
 
                 return Column(
@@ -91,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               alignment: Alignment.center,
                               children: [
                                 // Header with Animated Points
-                                _buildHeader(context, correctCount),
+                                _buildHeader(context, myTotalPoints),
                                 Positioned(
                                   top: 330,
                                   child: _buildFloatingStatsCard(
@@ -102,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 140),
                             _buildGridMenu(context),
                             const SizedBox(height: 40),
+
                           ],
                         ),
                       ),
@@ -276,15 +291,59 @@ class _HomeScreenState extends State<HomeScreen> {
           Image.asset("Assets/Images/changelanguage.png",
               height: 30, width: 30),
           const SizedBox(width: 20),
-          GestureDetector(
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen())),
-            child: const CircleAvatar(
-              radius: 22,
-              backgroundImage: AssetImage('Assets/Images/avatar.png'),
-              backgroundColor: Colors.white24,
-            ),
-          ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              const CircleAvatar(
+                radius: 24,
+
+                backgroundColor: Color(0xFFFFFFFF),),
+              // Inside _buildTopActionBar in HomeScreen.dart
+
+              GestureDetector(
+                onTap: () async {
+                  // Navigate and wait for the selected avatar path
+
+                  final selectedImage = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                  );
+
+                  if (selectedImage != null) {
+                    // Update the database with the new selected image
+                    await _dbRef.child('User').child(_deviceId!).update({
+                      'ProfileImage': selectedImage,
+                    });
+                  }
+                },
+                child: StreamBuilder(
+                  stream: _dbRef.child('User').child(_deviceId!).onValue,
+                  builder: (context, snapshot) {
+                    String avatarPath = 'Assets/Images/avatar.png'; // Default Avatar
+
+                    if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+                      Map data = snapshot.data!.snapshot.value as Map;
+                      String? dbImage = data['ProfileImage'];
+
+                      // FIX: Check if the string exists AND is not empty
+                      if (dbImage != null && dbImage.isNotEmpty) {
+                        avatarPath = dbImage;
+                      }
+                    }
+
+                    return CircleAvatar(
+                      radius: 22,
+                      // If avatarPath is empty or wrong, it uses the default asset
+                      backgroundImage: AssetImage(avatarPath),
+                      backgroundColor: Colors.white24,
+                    );
+                  },
+                ),
+              ),
+
+            ]
+          )
+
         ],
       ),
     );

@@ -1,8 +1,10 @@
 import 'package:braita_new/UI/Screens/AboutScreen.dart';
+import 'package:braita_new/UI/Screens/AvatarSelectScreen.dart';
 import 'package:braita_new/UI/Screens/HomeScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // For More Apps
 import 'package:share_plus/share_plus.dart'; // For Sharing
+import '../../Ads/banner_ad_manager.dart';
 import '../Widgets/BottomNavigationBar.dart';
 import 'AccountDeleteRequest.dart';
 import 'PrivacyPolicyScreen.dart';
@@ -26,7 +28,16 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const BottomNavigation(currentIndex: 3),
+      // bottomNavigationBar: const BottomNavigation(currentIndex: 3),
+      //banner ad (wraped bottem navigation and banner ad,if want remove below code and remove commented code comment)
+      bottomNavigationBar: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MyBannerAdWidget(), // Just one import, one line of code!
+          BottomNavigation(currentIndex: 3),
+        ],
+      ),
+      //----------------------------------------------
       body: Column(
         children: [
           const SizedBox(height: 35),
@@ -91,7 +102,8 @@ class SettingsScreen extends StatelessWidget {
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => const AccountDeleteRequest())),
+                                  //builder: (context) => const AccountDeleteRequest())),
+                            builder: (context) => const AccountDeleteRequest())),
                         ),
                       ],
                     ),

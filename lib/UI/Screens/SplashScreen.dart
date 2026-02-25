@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
 
-import 'HomeScreen.dart';
+// Update these imports to match your project folder structure
+import '../../Ads/app_open_ad_manager.dart';
 
-void main() {
-  runApp(const MaterialApp(
-    home: SplashScreen(),
-    debugShowCheckedModeBanner: false,
-  ));
-}
+import 'HomeScreen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,79 +15,90 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final AppOpenAdManager _adManager = AppOpenAdManager();
+  bool _hasNavigated = false; // Ensures we only navigate once
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
+
+    // 1. Start loading the ad.
+    // This callback fires as soon as Google says "Ready" or "Failed".
+    _adManager.loadAd(onAdLoaded: () {
+      _navigateToNext();
+    });
+
+    // 2. Safety Timer: If the ad/internet is slow, don't wait forever.
+    Timer(const Duration(seconds: 10), () {
+      _navigateToNext();
+    });
+  }
+
+  void _navigateToNext() {
+    if (_hasNavigated || !mounted) return;
+    _hasNavigated = true;
+
+    // Show the ad if it's there; if not, showAdIfAvailable will just run the callback.
+    _adManager.showAdIfAvailable(() {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFA42FC1), // Your purple background
+      backgroundColor: const Color(0xFFA42FC1), // Braita Purple
       body: Stack(
         children: [
-          // 1. Background Stars
+          // 1. Animated-style Star Background
           const FullScreenStars(starCount: 50),
 
-          // 2. Middle Layer: Robot Image
+          // 2. Center Content: Robot + Loader
           Center(
-            child: Image.asset(
-              'Assets/Images/robotimagetosplash.png',
-              height: 250,
-              width: 250,
-            ),
-          ),
-
-          // 3. Footer Section (Fixed Nesting)
-          const Positioned(
-            bottom: 50, // Adjusted to make room for the legal text
-            left: 0,
-            right: 0,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Text(
-                      "n%hsgd",
-                      style: TextStyle(
-                        fontSize: 55,
-                        color: Colors.white,
-                        fontFamily: "Sinhasithija2012",
-                      ),
-                    ),
-                    Positioned(
-                      top: 45, // Moved up slightly to look balanced
-                      child: Row(
-                        children: [
-                          SizedBox(width: 20),
-                          Text(
-                            "Braita",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: "InterMedium",
-                              color: Color(0xFFFFFFFF),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                Image.asset(
+                  'Assets/Images/robotimagetosplash.png',
+                  height: 250,
+                  width: 250,
+                ),
+                const SizedBox(height: 40),
+                // Circular loading indicator
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Preparing Braita...",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+
+                  ),
                 ),
               ],
             ),
           ),
 
-          // 4. Rights Reserved Text
+          // 3. Footer Branding
+          Positioned(
+            bottom: 60,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Image.asset(
+                'Assets/Images/textsplash.png',
+                height: 54,
+              ),
+            ),
+          ),
+
+          // 4. Copyright Info
           const Positioned(
             bottom: 20,
             left: 0,
@@ -101,8 +108,7 @@ class _SplashScreenState extends State<SplashScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                fontFamily: "InterRegular",
-                color: Color(0xFFFFFFFF),
+                color: Colors.white70,
               ),
             ),
           ),
@@ -150,10 +156,8 @@ class FullScreenStars extends StatelessWidget {
                     'Assets/Images/star2.png',
                     height: size,
                     width: size,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.star,
-                        color: Colors.white.withOpacity(0.5),
-                        size: size),
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(Icons.star, color: Colors.white.withOpacity(0.5), size: size),
                   ),
                 ),
               ),

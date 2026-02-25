@@ -6,7 +6,7 @@ plugins {
     // START: FlutterFire Configuration
     id 'com.google.gms.google-services'
     // END: FlutterFire Configuration
-    id "kotlin-android"
+    id "org.jetbrains.kotlin.android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
 }
@@ -23,7 +23,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.xendrio.braita"
     compileSdk = 35
-    ndkVersion = "25.1.8937393"
+    ndkVersion = "26.1.10909125"
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_17
@@ -72,3 +72,4 @@ dependencies {
     // Add this line at the very bottom of the file!
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
 }
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../../Ads/banner_ad_manager.dart';
 import '../Widgets/BottomNavigationBar.dart';
 
 class HerosScreen extends StatefulWidget {
@@ -20,7 +21,16 @@ class _HerosScreenState extends State<HerosScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const BottomNavigation(currentIndex: 2),
+      // bottomNavigationBar: const BottomNavigation(currentIndex: 2),
+      //banner ad (wraped bottem navigation and banner ad,if want remove below code and remove commented code comment)
+      bottomNavigationBar: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MyBannerAdWidget(), // Just one import, one line of code!
+          BottomNavigation(currentIndex: 2),
+        ],
+      ),
+      //----------------------------------------------
       body: StreamBuilder(
         stream: _dbRef.onValue, // Real-time listener for leaderboard
         builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
@@ -37,7 +47,7 @@ class _HerosScreenState extends State<HerosScreen> {
 
             // Sorting logic based on total correct answers
             sortedUsers.sort((a, b) =>
-                (b['TotalCorrectAnsweredQuizCount'] ?? 0).compareTo(a['TotalCorrectAnsweredQuizCount'] ?? 0));
+                (b['MyPoints'] ?? 0).compareTo(a['MyPoints'] ?? 0));
 
             topThree = sortedUsers.take(3).toList();
             rankingList = sortedUsers.length > 3 ? sortedUsers.sublist(3) : [];
@@ -113,7 +123,8 @@ class _HerosScreenState extends State<HerosScreen> {
       itemBuilder: (context, index) {
         String rank = (index + 4).toString().padLeft(2, '0');
         String name = rankingList.isEmpty ? "Loading..." : (rankingList[index]['UserName'] ?? "Visitor");
-        return _buildRankingTile(rank, name);
+        String? imgPath = rankingList.isEmpty ? null : rankingList[index]['ProfileImage'];
+        return _buildRankingTile(rank, name, imgPath);
       },
     );
   }
@@ -123,7 +134,10 @@ class _HerosScreenState extends State<HerosScreen> {
     String firstPlace = topThree.isNotEmpty ? (topThree[0]['UserName'] ?? "").split(" ")[0] : "...";
     String secondPlace = topThree.length > 2 ? (topThree[2]['UserName'] ?? "").split(" ")[0] : "...";
     String thirdPlace = topThree.length > 1 ? (topThree[1]['UserName'] ?? "").split(" ")[0] : "...";
-
+// FETCH IMAGE PATHS FOR TOP 3
+    String? firstImg = topThree.isNotEmpty ? topThree[0]['ProfileImage'] : null;
+    String? secondImg = topThree.length > 2 ? topThree[2]['ProfileImage'] : null;
+    String? thirdImg = topThree.length > 1 ? topThree[1]['ProfileImage'] : null;
     return Container(
       margin: const EdgeInsets.all(10),
       height: isLandscape ? 300 : 420, // Responsive height adjustment
@@ -147,11 +161,11 @@ class _HerosScreenState extends State<HerosScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildAnimatedPodiumBar(secondPlace, isLandscape ? 60 : 80, 1200),
+                  _buildAnimatedPodiumBar(secondPlace,secondImg, isLandscape ? 60 : 80, 1200),
                   const SizedBox(width: 15),
-                  _buildAnimatedPodiumBar(firstPlace, isLandscape ? 110 : 150, 1500, isWinner: true),
+                  _buildAnimatedPodiumBar(firstPlace,firstImg, isLandscape ? 110 : 150, 1500, isWinner: true),
                   const SizedBox(width: 15),
-                  _buildAnimatedPodiumBar(thirdPlace, isLandscape ? 85 : 110, 1000),
+                  _buildAnimatedPodiumBar(thirdPlace,thirdImg, isLandscape ? 85 : 110, 1000),
                 ],
               ),
 
@@ -163,7 +177,7 @@ class _HerosScreenState extends State<HerosScreen> {
   }
 
   // --- Animated Podium Bar ---
-  Widget _buildAnimatedPodiumBar(String name, double targetHeight, int durationMs, {bool isWinner = false}) {
+  Widget _buildAnimatedPodiumBar(String name, String? imgPath, double targetHeight, int durationMs, {bool isWinner = false}) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: targetHeight),
       duration: Duration(milliseconds: durationMs),
@@ -176,8 +190,11 @@ class _HerosScreenState extends State<HerosScreen> {
               opacity: (height / targetHeight).clamp(0.0, 1.0),
               child: CircleAvatar(
                 radius: isWinner ? 35 : 28,
-                backgroundImage: const AssetImage('Assets/Images/avatar.png'),
                 backgroundColor: Colors.white,
+                // DYNAMIC AVATAR LOGIC
+                backgroundImage: AssetImage(
+                    (imgPath == null || imgPath.isEmpty) ? 'Assets/Images/avatar.png' : imgPath
+                ),
               ),
             ),
             const SizedBox(height: 5),
@@ -202,7 +219,7 @@ class _HerosScreenState extends State<HerosScreen> {
   }
 
   // --- Ranking Tile Widget ---
-  Widget _buildRankingTile(String rank, String name) {
+  Widget _buildRankingTile(String rank, String name, String? imgPath) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       height: 60,
@@ -211,7 +228,14 @@ class _HerosScreenState extends State<HerosScreen> {
         children: [
           Container(width: 10, height: 50, decoration: const BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.only(topRight: Radius.circular(10), bottomRight: Radius.circular(10)))),
           const SizedBox(width: 15),
-          const CircleAvatar(radius: 20, backgroundImage: AssetImage('Assets/Images/avatar.png')),
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.white24,
+            // DYNAMIC AVATAR LOGIC
+            backgroundImage: AssetImage(
+                (imgPath == null || imgPath.isEmpty) ? 'Assets/Images/avatar.png' : imgPath
+            ),
+          ),
           const SizedBox(width: 15),
           Expanded(child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
           Text(rank, style: const TextStyle(color: Color(0xFF9C27B0), fontWeight: FontWeight.w900, fontSize: 20)),

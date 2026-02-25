@@ -1,51 +1,63 @@
-import 'dart:io';
-import 'package:firebase_database/firebase_database.dart'; //
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 
 class DatabaseService {
-  // Use FirebaseDatabase instead of Firestore
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final Uuid _uuid = const Uuid();
 
-  Future<String?> getDeviceId() async {
-    var deviceInfo = DeviceInfoPlugin();
-    if (Platform.isAndroid) {
-      var androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id;
-    } else if (Platform.isIOS) {
-      var iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.identifierForVendor;
+  Future<String> getDeviceId() async {
+    try {
+      // 1. Try to read the ID
+      String? deviceId = await _secureStorage.read(key: 'device_id');
+
+      // 2. If it doesn't exist, create it
+      if (deviceId == null) {
+        deviceId = _uuid.v4();
+        await _secureStorage.write(key: 'device_id', value: deviceId);
+      }
+
+      return deviceId;
+    } catch (e) {
+      // 3. FIX: Catch the 'BAD_DECRYPT' error from Play Store re-signing
+      debugPrint("Secure Storage Error (Decrypt failed): $e");
+
+      // Clear the corrupted storage
+      await _secureStorage.deleteAll();
+
+      // Generate a fresh ID so the app can continue to the Home Screen
+      String newId = _uuid.v4();
+      await _secureStorage.write(key: 'device_id', value: newId);
+      return newId;
     }
-    return null;
   }
 
   Future<void> initializeUser() async {
     try {
-      String? rawDeviceId = await getDeviceId();
-      if (rawDeviceId == null) return;
+      // This will now always return a string and never crash the app
+      String deviceId = await getDeviceId();
+      // Sanitize the ID for Firebase keys
+      String sanitizedId = deviceId.replaceAll(RegExp(r'[.#$\[\]]'), '_');
 
-      // Sanitize the ID: Replace ALL invalid characters with underscores
-      // This RegExp catches . # $ [ ] and /
-      String deviceId = rawDeviceId.replaceAll(RegExp(r'[.#$\[\]]'), '_');
-
-      final userSnapshot = await _dbRef.child('User').child(deviceId).get();
+      final userSnapshot = await _dbRef.child('User').child(sanitizedId).get();
 
       if (!userSnapshot.exists) {
-        // Get current date for the initial entry
         String formattedDate = DateFormat('dd-MM-yyyy').format(DateTime.now());
 
-        await _dbRef.child('User').child(deviceId).set({
+        await _dbRef.child('User').child(sanitizedId).set({
           'ProfileImage': '',
           'UserName': 'Visitor user',
           'Email': 'visiter@gmail.com',
-          'Age': '0',
-          'Gender': '',
-          'District': '',
+          'Age': 'Age',
+          'Gender': 'Gender',
+          'District': 'District',
           'TotalCompletedQuizCount': 0,
           'TotalWrongAnsweredQuizCount': 0,
           'TotalCorrectAnsweredQuizCount': 0,
-          // Matching the double "Quiz progress" layer from your image
+          'MyPoints': 0,
           'QuizProgress': {
             'QuizProgress': {
               formattedDate: {
@@ -57,12 +69,10 @@ class DatabaseService {
             }
           },
         });
-        print("Realtime DB: New visitor created with correct nested structure.");
+        debugPrint("Realtime DB: New visitor created.");
       }
     } catch (e) {
-      print("Realtime DB Error: $e");
+      debugPrint("Realtime DB Error: $e");
     }
   }
 }
-
-//correct

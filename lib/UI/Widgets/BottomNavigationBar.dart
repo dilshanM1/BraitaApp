@@ -159,7 +159,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
                 alignment: Alignment.centerLeft,
                 widthFactor: isActive ? 1.0 : 0.0,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
+                  padding: const EdgeInsets.only(left: 4.0),
                   child: Text(
                     label,
                     style: const TextStyle(
@@ -177,3 +177,4 @@ class _BottomNavigationState extends State<BottomNavigation> {
     );
   }
 }
+//correct

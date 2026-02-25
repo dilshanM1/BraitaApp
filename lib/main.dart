@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'Services/NotificationService.dart';
 import 'firebase_options.dart';
 import 'UI/Screens/SplashScreen.dart';
@@ -8,7 +9,7 @@ import 'Services/DatabaseService.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await MobileAds.instance.initialize();
   // Transparent status bar setup
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,

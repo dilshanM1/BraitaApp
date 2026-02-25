@@ -3,6 +3,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
 import 'package:braita_new/Services/DatabaseService.dart';
 
+import '../../Ads/large_banner_ad.dart';
+import 'AvatarSelectScreen.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -57,6 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder(
         stream: _dbRef.child('User').child(_deviceId!).onValue,
+
         builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
           // Default local data
           Map userData = {
@@ -71,7 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
             userData = Map<dynamic, dynamic>.from(snapshot.data!.snapshot.value as Map);
           }
-
+          final String? currentAvatar = userData['ProfileImage'];
           return Column(
             children: [
               const SizedBox(height: 35),
@@ -90,12 +94,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           Positioned(
                             top: 70,
-                            child: _buildProfileImage(),
+                            child: _buildProfileImage(currentAvatar),
                           ),
                         ],
                       ),
                       const SizedBox(height: 130),
                       _buildEditButton(context, userData),
+                      const SizedBox(height: 5),
+                      const LargeBannerAd(),
+
                     ],
                   ),
                 ),
@@ -163,7 +170,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // --- Main Edit Button ---
   Widget _buildEditButton(BuildContext context, Map userData) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 70),
+      //padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 70),
+      padding: const EdgeInsets.only(bottom: 5, left: 35, right: 35, top: 80),
       child: GestureDetector(
         onTap: () => _showEditProfileDialog(context, userData),
         child: Container(
@@ -204,7 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _buildDialogHeader("Edit Profile"),
                       const SizedBox(height: 20),
-                      _buildEditableAvatar(),
+
+                      _buildEditableAvatar(existingData['ProfileImage']),
                       const SizedBox(height: 20),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -283,15 +292,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildEditableAvatar() {
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        const CircleAvatar(radius: 50, backgroundImage: AssetImage('Assets/Images/avatar.png')),
-        const CircleAvatar(radius: 14, backgroundColor: Color(0xFF9C27B0), child: Icon(Icons.camera_alt, size: 15, color: Colors.white)),
-      ],
-    );
-  }
+  // Widget _buildEditableAvatar() {
+  //   return Stack(
+  //     alignment: Alignment.bottomRight,
+  //     children: [
+  //       const CircleAvatar(radius: 50, backgroundImage: AssetImage('Assets/Images/avatar.png')),
+  //       const CircleAvatar(radius: 14, backgroundColor: Color(0xFF9C27B0), child: Icon(Icons.camera_alt, size: 15, color: Colors.white)),
+  //     ],
+  //   );
+  // }
 
   Widget _buildBottomIndicator() {
     return Container(height: 8, width: 80, decoration: const BoxDecoration(color: Color(0xFF9C27B0), borderRadius: BorderRadius.vertical(top: Radius.circular(10))));
@@ -324,11 +333,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileImage() {
-    return Container(
-      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 5)),
-      child: const CircleAvatar(radius: 75, backgroundImage: AssetImage('Assets/Images/avatar.png')),
+  // --- Update 1: Update the _buildProfileImage widget to use database path ---
+  Widget _buildProfileImage(String? imagePath) {
+    return GestureDetector(
+      onTap: () => _navigateToAvatarSelect(), // Click main image to change
+      child: Container(
+        decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 5)
+        ),
+        child: CircleAvatar(
+          radius: 75,
+          backgroundColor: Colors.white24,
+          // If imagePath is null or empty, use the default local avatar
+          backgroundImage: AssetImage(
+              (imagePath == null || imagePath.isEmpty)
+                  ? 'Assets/Images/avatar.png'
+                  : imagePath
+          ),
+        ),
+      ),
     );
+  }
+
+// --- Update 2: Update the small avatar inside the Edit Dialog ---
+  Widget _buildEditableAvatar(String? imagePath) {
+    return GestureDetector(
+      onTap: ()  {
+        Navigator.pop(context); // Close dialog before navigating
+        _navigateToAvatarSelect();
+  },
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.white24,
+              backgroundImage: AssetImage(
+                  (imagePath == null || imagePath.isEmpty)
+                      ? 'Assets/Images/avatar.png'
+                      : imagePath
+              )
+          ),
+          const CircleAvatar(
+              radius: 14,
+              backgroundColor: Color(0xFF9C27B0),
+              child: Icon(Icons.edit, size: 15, color: Colors.white)
+          ),
+        ],
+      ),
+    );
+  }
+
+// --- Update 3: Navigation Logic ---
+  Future<void> _navigateToAvatarSelect() async {
+    // Navigate to your new AvatarSelectScreen
+    final String? selectedPath = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AvatarSelectScreen()),
+    );
+
+    // If the user picked an avatar, update Firebase immediately
+    if (selectedPath != null && _deviceId != null) {
+      await _dbRef.child('User').child(_deviceId!).update({
+        'ProfileImage': selectedPath,
+      });
+
+      // Optional: Show a small toast or snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profile picture updated!")),
+      );
+    }
   }
 
   List<Widget> _buildFullStarPattern({required int rows, required int columns}) {
