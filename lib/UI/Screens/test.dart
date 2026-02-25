@@ -1,4 +1,4 @@
-void _showCongratulationsDialog() {
+void _showSuccessDialog(int earned, int totalBalance) {
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -8,40 +8,63 @@ void _showCongratulationsDialog() {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ... (Your existing Header "Congratulations !")
-
-            // ... (Your existing Image and "Watch video to collect 4 Points" text)
-
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: const BoxDecoration(
+                color: Color(0xFF9C27B0),
+                borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+              ),
+              child: const Text(
+                "Wow.. You earnd",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Robot on gold coins from image_ea5b3b.png
+            Image.asset('Assets/Images/robot_gold.png', height: 140),
+            const SizedBox(height: 15),
+            Text("You earned $earned extra points",
+                style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Your point balance",
+                    style: TextStyle(fontSize: 14, color: Colors.black54)),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE1BEE7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text("$totalBalance",
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 25),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: ElevatedButton(
-                onPressed: !_adManager.isLoaded ? null : () {
-                  _adManager.showAd(onRewardEarned: () async {
-                    if (mounted) {
-                      Navigator.pop(context); // Close the "Watch Ad" dialog
-
-                      // 1. Update Database first
-                      await _updateDatabase(true, points: 4);
-
-                      // 2. Fetch the updated points for the dialog
-                      final userSnap = await _dbRef.child('User').child(_deviceId!).get();
-                      int currentBalance = 0;
-                      if (userSnap.exists) {
-                        Map data = userSnap.value as Map;
-                        currentBalance = data['MyPoints'] ?? 0;
-                      }
-
-                      // 3. Show the "Success" dialog (Your design image_ea5b3b.png)
-                      _showSuccessDialog(4, currentBalance);
-                    }
-                  });
+                onPressed: () {
+                  Navigator.pop(context); // Close this dialog
+                  _streakCount = 0;
+                  _proceedToNext(); // ONLY NOW start the next quiz and timer
                 },
-                // ... (Your existing Purple Button Style)
-                child: const Text("Collect Points 🔊"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF9C27B0),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                ),
+                child: const Text("Continue",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
-
-            // ... (Your existing Cancel Button)
+            const SizedBox(height: 20),
           ],
         ),
       );
