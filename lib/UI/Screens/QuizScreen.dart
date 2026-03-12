@@ -369,6 +369,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
       bottomNavigationBar: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+
           MyBannerAdWidget(), // Just one import, one line of code!
           BottomNavigation(currentIndex: 1),
         ],

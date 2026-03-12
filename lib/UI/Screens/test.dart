@@ -1,73 +1,44 @@
-void _showSuccessDialog(int earned, int totalBalance) {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              decoration: const BoxDecoration(
-                color: Color(0xFF9C27B0),
-                borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-              ),
-              child: const Text(
-                "Wow.. You earnd",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Robot on gold coins from image_ea5b3b.png
-            Image.asset('Assets/Images/robot_gold.png', height: 140),
-            const SizedBox(height: 15),
-            Text("You earned $earned extra points",
-                style: const TextStyle(fontSize: 14, color: Colors.black54)),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Your point balance",
-                    style: TextStyle(fontSize: 14, color: Colors.black54)),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE1BEE7),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text("$totalBalance",
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
-                ),
-              ],
-            ),
-            const SizedBox(height: 25),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close this dialog
-                  _streakCount = 0;
-                  _proceedToNext(); // ONLY NOW start the next quiz and timer
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF9C27B0),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                ),
-                child: const Text("Continue",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      );
-    },
-  );
-}
+class _BottomNavigationState extends State<BottomNavigation> {
+  // --- Create an instance of your manager here ---
+  final InterstitialAdManager _adManager = InterstitialAdManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _adManager.loadAd(); // Pre-load the ad so it's ready
+  }
+
+  void _onTap(int index, Widget screen) {
+    // ... your existing _onTap code ...
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double itemWidth = (screenWidth - 20) / 4;
+
+    return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+
+          // RULE 1: If not on Home tab, go to Home
+          if (widget.currentIndex != 0) {
+            _onTap(0, const HomeScreen());
+            return;
+          }
+
+          // RULE 2: If on Home, call your manager's showAd method
+          _adManager.showAd(onAdDismissed: () {
+            // This runs after the ad is closed OR if the ad fails to show
+            SystemNavigator.pop();
+          });
+
+          // Safety timeout (optional): Ensures app closes even if
+          // the ad SDK hangs for some reason.
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) SystemNavigator.pop();
+          });
+        },
+        child: SafeArea(
+    // ... rest of your UI code ...
