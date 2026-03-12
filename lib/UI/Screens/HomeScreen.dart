@@ -390,10 +390,10 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback onTap, // This is already here
+    required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onTap, // <--- ADD THIS LINE
+      onTap: onTap,
       behavior: HitTestBehavior.opaque, // Ensures the whole area is clickable
       child: Column(
         children: [
@@ -428,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- NEW: Custom Update Dialog (Matches image_270ad8.png) ---
+  // --- Update Dialog  ---
   void _showUpdateDialog() {
     showDialog(
       context: context,
@@ -466,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: ElevatedButton(
                   onPressed: () async {
-                    // Replace with your actual Play Store URL
+                    //  Play Store URL
                     const url =
                         'https://play.google.com/store/apps/details?id=com.xendrio.braita';
                     final Uri uri = Uri.parse(url);
