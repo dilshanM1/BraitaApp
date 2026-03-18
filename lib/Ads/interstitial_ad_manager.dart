@@ -2,11 +2,14 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/material.dart';
 
 class InterstitialAdManager {
-  // ANDROID TEST ID
+  // ANDROID ID
   final String _adUnitId = 'ca-app-pub-5065139330688835/4231561761';
 
   InterstitialAd? _interstitialAd;
   bool _isLoaded = false;
+
+  // FIX: Added a public getter so QuizScreen can see if the ad is ready
+  bool get isLoaded => _isLoaded;
 
   void loadAd() {
     InterstitialAd.load(
@@ -20,6 +23,7 @@ class InterstitialAdManager {
         },
         onAdFailedToLoad: (LoadAdError error) {
           _isLoaded = false;
+          _interstitialAd = null; // Good practice to nullify on failure
           debugPrint('❌ InterstitialAd failed to load: $error');
         },
       ),
@@ -32,12 +36,14 @@ class InterstitialAdManager {
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
           _isLoaded = false;
-          loadAd(); // <--- CRITICAL: Load the next ad immediately!
+          _interstitialAd = null;
+          loadAd(); // Load the next ad immediately
           onAdDismissed();
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
           ad.dispose();
           _isLoaded = false;
+          _interstitialAd = null;
           loadAd(); // Reload even on failure
           onAdDismissed();
         },

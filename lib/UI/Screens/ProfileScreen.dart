@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
 import 'package:braita_new/Services/DatabaseService.dart';
-
 import '../../Ads/large_banner_ad.dart';
 import 'AvatarSelectScreen.dart';
 
@@ -22,7 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
   String _selectedGender = 'Male';
 
@@ -38,7 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
-    _districtController.dispose();
+    _phoneController.dispose();
     _ageController.dispose();
     super.dispose();
   }
@@ -60,7 +59,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder(
         stream: _dbRef.child('User').child(_deviceId!).onValue,
-
         builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
           // Default local data
           Map userData = {
@@ -68,7 +66,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Email': 'visiter@gmail.com',
             'Age': '0',
             'Gender': 'Custom',
-            'District': 'Custom',
+            'PhoneNumber': 'None',
+            'UserTag': '--------',
             'ProfileImage': ''
           };
 
@@ -102,7 +101,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildEditButton(context, userData),
                       const SizedBox(height: 5),
                       const LargeBannerAd(),
-
                     ],
                   ),
                 ),
@@ -130,6 +128,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text(userData['UserName'] ?? "Visitor user",
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF605454))),
+          // Display the Unique User ID
+          Text("ID: ${userData['UserTag'] ?? '--------'}",
+              style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.bold)),
           const Divider(height: 30, thickness: 1.5, indent: 20, endIndent: 20),
           Text(userData['Email'] ?? "visiter@gmail.com", style: const TextStyle(fontSize: 16, color: Color(0xFF605454))),
           const SizedBox(height: 25),
@@ -138,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               _buildCategoryPill(userData['Age']?.toString() ?? "0"),
               _buildCategoryPill(userData['Gender'] ?? "Custom"),
-              _buildCategoryPill(userData['District'] ?? "Custom"),
+              _buildCategoryPill(userData['PhoneNumber'] ?? "None"),
             ],
           ),
           const SizedBox(height: 40),
@@ -153,24 +154,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // --- Logic to Update Firebase ---
   Future<void> _updateFirebaseProfile(BuildContext dialogContext) async {
+    await _autoUpdateFirebaseProfile();
+    if (mounted) Navigator.pop(dialogContext);
+  }
+
+  // Internal helper for Auto-Save logic
+  Future<void> _autoUpdateFirebaseProfile() async {
+    if (_deviceId == null) return;
+
     String fullName = "${_firstNameController.text} ${_lastNameController.text}";
 
-    // Updates name, email, gender, district, and AGE
     await _dbRef.child('User').child(_deviceId!).update({
       'UserName': fullName.trim().isEmpty ? 'Visitor user' : fullName,
-      'Email': _emailController.text,
+      'Email': _emailController.text.trim().isEmpty ? 'visiter@gmail.com' : _emailController.text,
       'Gender': _selectedGender,
-      'District': _districtController.text,
-      'Age': _ageController.text, // Correctly captures age from controller
+      'PhoneNumber': _phoneController.text.trim().isEmpty ? 'None' : _phoneController.text,
+      'Age': _ageController.text.trim().isEmpty ? '0' : _ageController.text,
     });
-
-    if (mounted) Navigator.pop(dialogContext);
   }
 
   // --- Main Edit Button ---
   Widget _buildEditButton(BuildContext context, Map userData) {
     return Padding(
-      //padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 70),
       padding: const EdgeInsets.only(bottom: 5, left: 35, right: 35, top: 80),
       child: GestureDetector(
         onTap: () => _showEditProfileDialog(context, userData),
@@ -189,68 +194,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- Main Profile Edit Dialog (Matches your UI Screenshot) ---
+  // --- Main Profile Edit Dialog ---
   void _showEditProfileDialog(BuildContext context, Map existingData) {
-    List<String> names = (existingData['UserName'] ?? "").split(" ");
-    _firstNameController.text = names.isNotEmpty ? names[0] : "";
-    _lastNameController.text = names.length > 1 ? names.sublist(1).join(" ") : "";
-    _emailController.text = existingData['Email'] ?? '';
-    _districtController.text = existingData['District'] ?? '';
-    _ageController.text = existingData['Age']?.toString() ?? '';
-    _selectedGender = (existingData['Gender'] == 'Male' || existingData['Gender'] == 'Female') ? existingData['Gender'] : 'Male';
+    // 1. Handle Names
+    String fullName = existingData['UserName'] ?? "";
+    if (fullName == "Visitor user") {
+      _firstNameController.text = "";
+      _lastNameController.text = "";
+    } else {
+      List<String> names = fullName.split(" ");
+      _firstNameController.text = names.isNotEmpty ? names[0] : "";
+      _lastNameController.text = names.length > 1 ? names.sublist(1).join(" ") : "";
+    }
+
+    // 2. Handle Email
+    String email = existingData['Email'] ?? "";
+    _emailController.text = (email == "visiter@gmail.com") ? "" : email;
+
+    // 3. Handle Phone Number
+    String phone = existingData['PhoneNumber'] ?? "";
+    _phoneController.text = (phone == "None") ? "" : phone;
+
+    // 4. Handle Age
+    String age = existingData['Age']?.toString() ?? "";
+    _ageController.text = (age == "0" || age == "Age") ? "" : age;
+
+    // 5. Handle Gender
+    _selectedGender = (existingData['Gender'] == 'Male' || existingData['Gender'] == 'Female')
+        ? existingData['Gender']
+        : 'Male';
 
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return Dialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildDialogHeader("Edit Profile"),
-                      const SizedBox(height: 20),
-
-                      _buildEditableAvatar(existingData['ProfileImage']),
-                      const SizedBox(height: 20),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(child: _buildTextField("First name", _firstNameController)),
-                                const SizedBox(width: 10),
-                                Expanded(child: _buildTextField("Last name", _lastNameController)),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            _buildTextField("E-mail address", _emailController),
-                            const SizedBox(height: 10),
-                            _buildTextField("District", _districtController),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(child: _buildDropdownField(setDialogState)),
-                                const SizedBox(width: 10),
-                                Expanded(child: _buildTextField("Age", _ageController, isNumber: true)),
-                              ],
-                            ),
-                            const SizedBox(height: 25),
-                            _buildDialogButton("Update profile", const Color(0xFF9C27B0), Colors.white, () => _updateFirebaseProfile(dialogContext)),
-                            const SizedBox(height: 10),
-                            _buildDialogButton("Skip", const Color(0xFF6D676E), Colors.white, () => Navigator.pop(dialogContext)),
-                            const SizedBox(height: 25),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+        return PopScope(
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) {
+              await _autoUpdateFirebaseProfile();
             }
+          },
+          child: StatefulBuilder(
+              builder: (context, setDialogState) {
+                return Dialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDialogHeader("Edit Profile"),
+                        const SizedBox(height: 20),
+                        _buildEditableAvatar(existingData['ProfileImage']),
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: _buildTextField("First name", _firstNameController)),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: _buildTextField("Last name", _lastNameController)),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              _buildTextField("E-mail address", _emailController),
+                              const SizedBox(height: 10),
+                              _buildTextField("Phone Number", _phoneController, isNumber: true),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(child: _buildDropdownField(setDialogState)),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: _buildTextField("Age", _ageController, isNumber: true)),
+                                ],
+                              ),
+                              const SizedBox(height: 25),
+                              _buildDialogButton("Update profile", const Color(0xFF9C27B0), Colors.white, () => _updateFirebaseProfile(dialogContext)),
+                              const SizedBox(height: 10),
+                              _buildDialogButton("Skip", const Color(0xFF6D676E), Colors.white, () => Navigator.pop(dialogContext)),
+                              const SizedBox(height: 25),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+          ),
         );
       },
     );
@@ -262,8 +293,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
-        hintText: hint, filled: true,
-        fillColor: const Color(0xFFEDE7F6).withOpacity(0.5),
+        hintText: hint,
+        filled: true,
+        fillColor: const Color(0xFFF5F5F5), // Visible Gray Background
         contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
@@ -273,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildDropdownField(StateSetter setDialogState) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(color: const Color(0xFFEDE7F6).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)), // Visible Gray Background
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedGender, isExpanded: true,
@@ -291,16 +323,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
     );
   }
-
-  // Widget _buildEditableAvatar() {
-  //   return Stack(
-  //     alignment: Alignment.bottomRight,
-  //     children: [
-  //       const CircleAvatar(radius: 50, backgroundImage: AssetImage('Assets/Images/avatar.png')),
-  //       const CircleAvatar(radius: 14, backgroundColor: Color(0xFF9C27B0), child: Icon(Icons.camera_alt, size: 15, color: Colors.white)),
-  //     ],
-  //   );
-  // }
 
   Widget _buildBottomIndicator() {
     return Container(height: 8, width: 80, decoration: const BoxDecoration(color: Color(0xFF9C27B0), borderRadius: BorderRadius.vertical(top: Radius.circular(10))));
@@ -333,10 +355,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- Update 1: Update the _buildProfileImage widget to use database path ---
   Widget _buildProfileImage(String? imagePath) {
     return GestureDetector(
-      onTap: () => _navigateToAvatarSelect(), // Click main image to change
+      onTap: () => _navigateToAvatarSelect(),
       child: Container(
         decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -345,7 +366,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: CircleAvatar(
           radius: 75,
           backgroundColor: Colors.white24,
-          // If imagePath is null or empty, use the default local avatar
           backgroundImage: AssetImage(
               (imagePath == null || imagePath.isEmpty)
                   ? 'Assets/Images/avatar.png'
@@ -356,13 +376,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-// --- Update 2: Update the small avatar inside the Edit Dialog ---
   Widget _buildEditableAvatar(String? imagePath) {
     return GestureDetector(
       onTap: ()  {
-        Navigator.pop(context); // Close dialog before navigating
+        Navigator.pop(context);
         _navigateToAvatarSelect();
-  },
+      },
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
@@ -385,21 +404,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-// --- Update 3: Navigation Logic ---
   Future<void> _navigateToAvatarSelect() async {
-    // Navigate to your new AvatarSelectScreen
     final String? selectedPath = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AvatarSelectScreen()),
     );
 
-    // If the user picked an avatar, update Firebase immediately
     if (selectedPath != null && _deviceId != null) {
       await _dbRef.child('User').child(_deviceId!).update({
         'ProfileImage': selectedPath,
       });
 
-      // Optional: Show a small toast or snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profile picture updated!")),
       );

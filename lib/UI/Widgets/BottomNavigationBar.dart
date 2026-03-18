@@ -1,13 +1,14 @@
 import 'package:braita_new/UI/Screens/SettingsScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Required for SystemNavigator.pop()
-import '../../Ads/interstitial_ad_manager.dart'; // Ensure path is correct
+import '../../Ads/interstitial_ad_manager.dart';
 import '../Screens/HerosScreen.dart';
 import '../Screens/QuizScreen.dart';
 import '../Screens/HomeScreen.dart';
 
 class BottomNavigation extends StatefulWidget {
   final int currentIndex;
+
   const BottomNavigation({super.key, required this.currentIndex});
 
   @override
@@ -15,15 +16,7 @@ class BottomNavigation extends StatefulWidget {
 }
 
 class _BottomNavigationState extends State<BottomNavigation> {
-  // 1. Initialize your specific Ad Manager instance
-  final InterstitialAdManager _adManager = InterstitialAdManager();
-
-  @override
-  void initState() {
-    super.initState();
-    // 2. Pre-load the ad so it is ready when back is pressed
-    _adManager.loadAd();
-  }
+  DateTime? _lastPressedAt; // Track time for double-click exit
 
   void _onTap(int index, Widget screen) {
     if (widget.currentIndex == index) return;
@@ -56,12 +49,30 @@ class _BottomNavigationState extends State<BottomNavigation> {
             return;
           }
 
-          // RULE 2: Show Ad immediately.
-          // REMOVED: Future.delayed fallback. This prevents the "gap" or premature closing.
-          _adManager.showAd(onAdDismissed: () {
-            // This ONLY runs when the user closes the ad OR if the ad fails to load.
-            SystemNavigator.pop();
-          });
+          // RULE 2: If already on Home tab, handle double-click to exit
+          final now = DateTime.now();
+          if (_lastPressedAt == null ||
+              now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
+            _lastPressedAt = now;
+
+            // Notify the user
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "Double click back button to exit from Braita 😒😑",
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Color(0xFFBA7873),
+              ),
+            );
+            return;
+          }
+
+          // If second click is within 2 seconds, close the app
+          SystemNavigator.pop();
         },
         child: SafeArea(
           top: false,
@@ -74,11 +85,27 @@ class _BottomNavigationState extends State<BottomNavigation> {
             ),
             child: Stack(
               children: [
-                // --- SLIDING BACKGROUND RECTANGLE ---
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 350),
                   curve: Curves.easeInOutQuart,
                   left: (widget.currentIndex * itemWidth) + 5,
+                  top: 7,
+                  child: Container(
+                    width: itemWidth - 10,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+
+                // --- SLIDING BACKGROUND RECTANGLE ---
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeInOutQuart, // Smooth sliding curve
+                  left: (widget.currentIndex * itemWidth) +
+                      5, // Offset based on index
                   top: 7,
                   child: Container(
                     width: itemWidth - 10,
@@ -152,3 +179,4 @@ class _BottomNavigationState extends State<BottomNavigation> {
     );
   }
 }
+//correct
