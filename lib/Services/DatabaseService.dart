@@ -60,7 +60,7 @@ class DatabaseService {
           'TotalWrongAnsweredQuizCount': 0,
           'TotalCorrectAnsweredQuizCount': 0,
           'MyPoints': 0,
-          'CompetitionPoints': 0, // <--- ADDED: Initialize competition points to 0
+          'CompetitionPoints': 0,
           'QuizProgress': {
             'QuizProgress': {
               formattedDate: {

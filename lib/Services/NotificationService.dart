@@ -101,7 +101,7 @@ class NotificationService {
     await _notificationsPlugin.zonedSchedule(
       101,
       "Braita Quiz Time! 🧠",
-      "Reach the Hero Ranking! Complete your 20 quizzes today.",
+      "Reach the Hero Ranking! Complete your 50 quizzes today.",
       _nextInstanceOfSevenPM(),
       const NotificationDetails(
         android: AndroidNotificationDetails(

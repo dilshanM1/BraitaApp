@@ -684,9 +684,9 @@ class _HerosScreenState extends State<HerosScreen> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: rankingList.isEmpty
-                ? 0
-                : (rankingList.length > 10 ? 10 : rankingList.length),
+            itemCount: rankingList.length,
+                // ? 0
+                // : (rankingList.length > 10 ? 10 : rankingList.length),
             itemBuilder: (context, index) {
               String rank = (index + 4).toString().padLeft(2, '0');
               var user = rankingList[index];

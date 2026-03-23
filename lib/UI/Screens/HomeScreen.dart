@@ -60,15 +60,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       await prefs.setInt('guide_show_count', count + 1);
     }
   }
-
+//--------version update-----------------
   void _checkUpdateStatus() {
-    const int currentAppVersion = 2;
+    const int currentAppVersion = 4;
     _dbRef.child('Updates').onValue.listen((event) {
       if (!mounted) return;
       final data = event.snapshot.value as Map?;
       if (data != null) {
         int status = data['Avalable'] ?? 0;
-        int latestVersion = data['Version'] ?? 2;
+        int latestVersion = data['Version'] ?? 4;
         if (status == 1 && latestVersion > currentAppVersion && !_dialogShown) {
           setState(() => _dialogShown = true);
           _showUpdateDialog();

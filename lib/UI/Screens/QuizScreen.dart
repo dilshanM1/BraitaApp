@@ -21,6 +21,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   final DatabaseService _dbService = DatabaseService();
   final RewardedAdManager _adManager = RewardedAdManager();
   final InterstitialAdManager _interstitialAdManager = InterstitialAdManager();
+
   // Logic State
   List<Map<dynamic, dynamic>> _dailyQuizzes = [];
   int _currentQuizIndex = 0;
@@ -39,7 +40,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   int _dbWrong = 0;
   int _remainingToday = 20;
 
-  // Bonus Round Tracking
+  // UPDATED: Used for alternating ad logic and tracking rounds
   int _extraRoundsClaimed = 0;
 
   // Streak Tracking Logic
@@ -50,7 +51,6 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     super.initState();
     _adManager.loadAd();
     _interstitialAdManager.loadAd();
-    _adManager.loadAd(onAdLoaded: () => setState(() {}));
     WidgetsBinding.instance.addObserver(this);
     _loadUserAndQuizzes();
   }
@@ -67,8 +67,8 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused) {
       _timer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
-      // Reload ad if not loaded when coming back
       if (!_adManager.isLoaded) _adManager.loadAd();
+      if (!_interstitialAdManager.isLoaded) _interstitialAdManager.loadAd();
 
       if (!_isAnswered && _dailyQuizzes.isNotEmpty) {
         _startTimer();
@@ -103,15 +103,13 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
         _extraRoundsClaimed = dailyNode['ExtraRoundsClaimed'] ?? 0;
       }
 
-      // If user returns and remaining is 0, show the limit dialog
       if (_remainingToday <= 0) {
         setState(() => _dailyQuizzes = []);
         _showLimitReached();
         return;
       }
 
-      String startKey =
-          'quiz${(totalCompleted + 1).toString().padLeft(5, '0')}';
+      String startKey = 'quiz${(totalCompleted + 1).toString().padLeft(5, '0')}';
       final quizSnap = await _dbRef
           .child('Quizzes')
           .child('Quizzes')
@@ -186,8 +184,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   void _proceedToNext() {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        if (_currentQuizIndex < _dailyQuizzes.length - 1 &&
-            _remainingToday > 0) {
+        if (_currentQuizIndex < _dailyQuizzes.length - 1 && _remainingToday > 0) {
           setState(() {
             _currentQuizIndex++;
             _isAnswered = false;
@@ -208,8 +205,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -218,28 +214,20 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 decoration: const BoxDecoration(
                   color: Color(0xFF9C27B0),
-                  borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30)),
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
                 ),
                 child: const Text("Congratulations !",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 20),
               Image.asset('Assets/Images/star_robot.png', height: 150),
               const SizedBox(height: 20),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text("Watch a short video to collect 4 Points!",
+                child: Text("කෙටි වීඩියෝවක් නරඹා පොයින්ට් 4ක් වැඩිපුර ලබාගන්න\nWatch a short video to collect 4 Points!",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87)),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold,)),
               ),
               const SizedBox(height: 20),
               Padding(
@@ -248,37 +236,24 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   onPressed: !_adManager.isLoaded
                       ? null
                       : () {
-                          _adManager.showAd(onRewardEarned: () async {
-                            if (mounted) {
-                              Navigator.pop(context);
-                              await _updateDatabase(true, points: 4);
-                              final userSnap = await _dbRef
-                                  .child('User')
-                                  .child(_deviceId!)
-                                  .get();
-                              int currentBalance =
-                                  (userSnap.value as Map)['MyPoints'] ?? 0;
-                              _showSuccessDialog(4, currentBalance);
-                            }
-                          });
-                        },
+                    _adManager.showAd(onRewardEarned: () async {
+                      if (mounted) {
+                        Navigator.pop(context);
+                        await _updateDatabase(true, points: 4);
+                        final userSnap = await _dbRef.child('User').child(_deviceId!).get();
+                        int currentBalance = (userSnap.value as Map)['MyPoints'] ?? 0;
+                        _showSuccessDialog(4, currentBalance);
+                      }
+                    });
+                  },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _adManager.isLoaded
-                        ? const Color(0xFF9C27B0)
-                        : Colors.grey.shade400,
+                    backgroundColor: _adManager.isLoaded ? const Color(0xFF9C27B0) : Colors.grey.shade400,
                     minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                   ),
                   child: _adManager.isLoaded
-                      ? const Text("Collect Points 🔊",
-                          style: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold))
-                      : const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2)),
+                      ? const Text("පොයින්ට්  ලබාගන්න\nCollect Points",textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 13,fontWeight: FontWeight.bold))
+                      : const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
                 ),
               ),
               const SizedBox(height: 10),
@@ -294,11 +269,8 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   style: TextButton.styleFrom(
                       backgroundColor: const Color(0xFFBDBDBD),
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25))),
-                  child: const Text("Cancel",
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
+                  child: const Text ("එපා\nCancel",textAlign: TextAlign.center, style: TextStyle (color: Colors.white,  fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 15),
@@ -309,6 +281,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     );
   }
 
+  // UPDATED: This section now handles alternating ads and unlimited quizzes
   void _showLimitReached() {
     _timer?.cancel();
     Timer? adRetryTimer;
@@ -319,45 +292,26 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // Check for ad every 2 seconds if not loaded
-            if (!_adManager.isLoaded && adRetryTimer == null) {
-              adRetryTimer =
-                  Timer.periodic(const Duration(seconds: 2), (timer) {
-                if (_adManager.isLoaded) {
-                  if (mounted) setStateDialog(() {});
-                  timer.cancel();
-                } else {
-                  _adManager.loadAd();
-                }
+
+            // LOGIC: Alternating Ad Type based on rounds
+            bool isInterstitialRound = _extraRoundsClaimed % 2 == 0;
+            bool adReady = isInterstitialRound ? _interstitialAdManager.isLoaded : _adManager.isLoaded;
+
+            if (!adReady && adRetryTimer == null) {
+              adRetryTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+                if (isInterstitialRound) _interstitialAdManager.loadAd(); else _adManager.loadAd();
+                if (mounted) setStateDialog(() {});
               });
             }
 
-            String title = "Daily Limit Reached";
-            String subTitle =
-                "You've finished your quizzes for today! Come back tomorrow.";
-            String buttonText = "Come Tomorrow";
-            bool canUnlockMore = false;
-            int bonusAmount = 0;
-
-            if (_extraRoundsClaimed == 0) {
-              title = "සීමාව ඉක්මවා ඇත / Limit Reached";
-              subTitle =
-                  "තවත් ප්‍රශ්න 20ක් ලබා ගැනීමට කෙටි වීඩියෝවක් නරඹන්න\nWatch a Small video to get 20 more quizzes!";
-              buttonText = "ප්‍රශ්න 20ක් ගන්න\nGet 20 Quizzes";
-              canUnlockMore = true;
-              bonusAmount = 20;
-            } else if (_extraRoundsClaimed == 1) {
-              title = "අවසන් අවස්ථාව / Last Chance";
-              subTitle =
-                  "තවත් ප්‍රශ්න 10ක් ලබා ගැනීමට වීඩියෝවක් නරඹන්න\nWatch a video to get 10 more quizzes!";
-              buttonText = "ප්‍රශ්න 10ක් ගන්න\nGet 10 Quizzes";
-              canUnlockMore = true;
-              bonusAmount = 10;
-            }
+            // UI Strings - Always offering 20 now (Unlimited)
+            String title = "වැඩිපුර ප්‍රශ්න ලබාගන්න\nGet More Quizzes";
+            String subTitle = "තවත් ප්‍රශ්න 20ක් ලබාගන්න කෙටි වීඩියෝවක් නරඹන්න\nWatch small video to get 20 more quizzes!";
+            String buttonText = "ප්‍රශ්න 20ක් ලබාගන්න\nGet 20 Quizzes";
+            int bonusAmount = 20;
 
             return Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -366,78 +320,49 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     decoration: const BoxDecoration(
                       color: Color(0xFF9C27B0),
-                      borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30)),
+                      borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
                     ),
                     child: Text(title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold)),
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 20),
                   Image.asset('Assets/Images/dailylimitrobot.png', height: 150),
                   const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(subTitle,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 14)),
+                    child: Text(subTitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14)),
                   ),
                   const SizedBox(height: 20),
-                  if (canUnlockMore)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: ElevatedButton(
-                        onPressed: !_adManager.isLoaded
-                            ? null
-                            : () {
-                                adRetryTimer?.cancel();
-                                _adManager.showAd(onRewardEarned: () async {
-                                  Navigator.pop(context);
-                                  setState(() {
-                                    _extraRoundsClaimed++;
-                                    _remainingToday = bonusAmount;
-                                  });
-                                  await _dbRef
-                                      .child('User')
-                                      .child(_deviceId!)
-                                      .child('QuizProgress')
-                                      .child('QuizProgress')
-                                      .child(_today)
-                                      .update({
-                                    'RemainingQuizCount': bonusAmount,
-                                    'ExtraRoundsClaimed': _extraRoundsClaimed,
-                                  });
-                                  _showBonusSuccessDialog(bonusAmount);
-                                });
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _adManager.isLoaded
-                              ? const Color(0xFF9C27B0)
-                              : Colors.grey.shade400,
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25)),
-                        ),
-                        child: _adManager.isLoaded
-                            ? Text(buttonText,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
 
-                                    fontSize: 12,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold))
-                            : const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2)),
+                  // BUTTON 1: Get Quizzes (Triggers Ad)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: ElevatedButton(
+                      onPressed: !adReady ? null : () {
+                        adRetryTimer?.cancel();
+                        if (isInterstitialRound) {
+                          // Show Interstitial
+                          _interstitialAdManager.showAd(onAdDismissed: () => _handleAdSuccess(bonusAmount));
+                        } else {
+                          // Show Rewarded
+                          _adManager.showAd(onRewardEarned: () => _handleAdSuccess(bonusAmount));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: adReady ? const Color(0xFF9C27B0) : Colors.grey.shade400,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                       ),
+                      child: adReady
+                          ? Text(buttonText, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))
+                          : const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
                     ),
+                  ),
+
                   const SizedBox(height: 10),
+
+                  // BUTTON 2: Come Tomorrow (Cancel)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: ElevatedButton(
@@ -446,19 +371,12 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: canUnlockMore
-                              ? Colors.grey.shade400
-                              : const Color(0xFF9C27B0),
+                          backgroundColor: Colors.grey.shade400,
                           minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25))),
-                      child: const Text
-                        ("හෙට උත්සහාකරන්න\nCome Tomorrow",
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
+                      child: const Text("හෙට උත්සහාකරන්න\nCome Tomorrow",
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                          style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 15),
@@ -471,14 +389,35 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     ).then((_) => adRetryTimer?.cancel());
   }
 
+  // UPDATED: Centralized handler to process success after any ad type
+  void _handleAdSuccess(int bonusAmount) async {
+    if (!mounted) return;
+
+    // Check if dialog is still open before popping
+    if (ModalRoute.of(context)?.isCurrent == false) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    setState(() {
+      _extraRoundsClaimed++;
+      _remainingToday = bonusAmount;
+    });
+
+    await _dbRef.child('User').child(_deviceId!).child('QuizProgress').child('QuizProgress').child(_today).update({
+      'RemainingQuizCount': bonusAmount,
+      'ExtraRoundsClaimed': _extraRoundsClaimed,
+    });
+
+    _showBonusSuccessDialog(bonusAmount);
+  }
+
   void _showBonusSuccessDialog(int amount) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -487,26 +426,18 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 decoration: const BoxDecoration(
                     color: Color(0xFF9C27B0),
-                    borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30))),
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
                 child: const Text("Success!",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 20),
               Image.asset('Assets/Images/robot_gold.png', height: 120),
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                    "ඔබට තවත් ප්‍රශ්න $amount ක් ලැබුණි!\nStart answering now.",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.bold)),
+                child: Text("ඔබට තවත් ප්‍රශ්න $amount ක් ලැබුණි!\nStart answering now.",
+                    textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 25),
               Padding(
@@ -519,11 +450,8 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF9C27B0),
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25))),
-                  child: const Text("Start / ආරම්භ කරන්න",
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
+                  child: const Text("Start / ආරම්භ කරන්න", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -540,8 +468,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -550,36 +477,25 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 decoration: const BoxDecoration(
                     color: Color(0xFF9C27B0),
-                    borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30))),
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
                 child: const Text("Wow.. You earnd",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 20),
               Image.asset('Assets/Images/robot_gold.png', height: 100),
               const SizedBox(height: 15),
-              Text("You earned $earned extra points",
-                  style: const TextStyle(fontSize: 14, color: Colors.black54)),
+              Text("You earned $earned extra points", style: const TextStyle(fontSize: 14, color: Colors.black54)),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Your point balance",
-                      style: TextStyle(fontSize: 14, color: Colors.black54)),
+                  const Text("Your point balance", style: TextStyle(fontSize: 14, color: Colors.black54)),
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                        color: Color(0xFFE1BEE7), shape: BoxShape.circle),
-                    child: Text("$totalBalance",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF9C27B0))),
+                    decoration: const BoxDecoration(color: Color(0xFFE1BEE7), shape: BoxShape.circle),
+                    child: Text("$totalBalance", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
                   ),
                 ],
               ),
@@ -595,11 +511,8 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF9C27B0),
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25))),
-                  child: const Text("Continue",
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
+                  child: const Text("Continue", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -614,35 +527,25 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     final userRef = _dbRef.child('User').child(_deviceId!);
     final progressRef = userRef.child('QuizProgress').child('QuizProgress').child(_today);
 
-    // 1. Get current Competition status from Firebase
     bool isCompetitionActive = false;
     try {
       final compSnap = await _dbRef.child('Competition').get();
       if (compSnap.exists) {
         Map compData = compSnap.value as Map;
         DateTime now = DateTime.now();
-
-        // Use the parsing logic from HerosScreen
         DateTime start = _parseDateTime(compData['StartDate'], compData['StartTime']);
         DateTime end = _parseDateTime(compData['EndDate'], compData['EndTime']);
-
-        if (now.isAfter(start) && now.isBefore(end)) {
-          isCompetitionActive = true;
-        }
+        if (now.isAfter(start) && now.isBefore(end)) isCompetitionActive = true;
       }
     } catch (e) {
       debugPrint("Error checking competition status: $e");
     }
 
     setState(() {
-      if (isCorrect)
-        _dbCorrect++;
-      else
-        _dbWrong++;
+      if (isCorrect) _dbCorrect++; else _dbWrong++;
       _remainingToday--;
     });
 
-    // 2. Prepare user updates
     Map<String, Object?> userUpdates = {
       'TotalCompletedQuizCount': ServerValue.increment(1),
       'MyPoints': ServerValue.increment(points),
@@ -651,14 +554,9 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
 
     if (isCorrect) {
       userUpdates['TotalCorrectAnsweredQuizCount'] = ServerValue.increment(1);
-
-      // ONLY increment CompetitionPoints if the competition window is currently open
-      if (isCompetitionActive) {
-        userUpdates['CompetitionPoints'] = ServerValue.increment(points);
-      }
+      if (isCompetitionActive) userUpdates['CompetitionPoints'] = ServerValue.increment(points);
     }
 
-    // 3. Push updates to Firebase
     await userRef.update(userUpdates);
     await progressRef.update({
       'CorrectQuizCount': _dbCorrect,
@@ -669,7 +567,6 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     });
   }
 
-  // Add the helper parser inside the state class if not already there
   DateTime _parseDateTime(String? date, String? time) {
     try {
       if (date == null || time == null) return DateTime(2000);
@@ -693,19 +590,14 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
         ],
       ),
       body: _deviceId == null
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF9C27B0)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)))
           : _buildQuizLayout(),
     );
   }
 
   Widget _buildQuizLayout() {
-    String question = _dailyQuizzes.isEmpty
-        ? "Loading Question..."
-        : _dailyQuizzes[_currentQuizIndex]['question'];
-    List<dynamic> answers = _dailyQuizzes.isEmpty
-        ? ["...", "...", "...", "..."]
-        : _dailyQuizzes[_currentQuizIndex]['answers'];
+    String question = _dailyQuizzes.isEmpty ? "Loading Question..." : _dailyQuizzes[_currentQuizIndex]['question'];
+    List<dynamic> answers = _dailyQuizzes.isEmpty ? ["...", "...", "...", "..."] : _dailyQuizzes[_currentQuizIndex]['answers'];
 
     return Column(
       children: [
@@ -719,8 +611,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   alignment: Alignment.center,
                   children: [
                     _buildHeaderprofile(),
-                    Positioned(
-                        top: 180, child: _buildQuestionCard(context, question)),
+                    Positioned(top: 180, child: _buildQuestionCard(context, question)),
                     Positioned(top: 150, child: _buildCircularTimer()),
                   ],
                 ),
@@ -729,11 +620,8 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
                     children: List.generate(answers.length, (index) {
-                      String correct = _dailyQuizzes.isEmpty
-                          ? ""
-                          : _dailyQuizzes[_currentQuizIndex]['correctAnswer'];
-                      return _buildAnswerOption(
-                          answers[index].toString(), index, correct);
+                      String correct = _dailyQuizzes.isEmpty ? "" : _dailyQuizzes[_currentQuizIndex]['correctAnswer'];
+                      return _buildAnswerOption(answers[index].toString(), index, correct);
                     }),
                   ),
                 ),
@@ -754,19 +642,14 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
               value: _timerSeconds / 20,
               strokeWidth: 6,
               backgroundColor: Colors.grey.shade200,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFF9C27B0)))),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF9C27B0)))),
       Container(
           width: 65,
           height: 65,
-          decoration:
-              const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
           alignment: Alignment.center,
           child: Text("$_timerSeconds",
-              style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF9C27B0)))),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0)))),
     ]);
   }
 
@@ -796,10 +679,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
             child: Text(text,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: textColor,
-                    fontFamily: "SinhalaBold",
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600))),
+                    color: textColor, fontFamily: "SinhalaBold", fontSize: 15, fontWeight: FontWeight.w600))),
       ),
     );
   }
@@ -821,10 +701,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
         Text(question,
             textAlign: TextAlign.center,
             style: const TextStyle(
-                fontSize: 20,
-                fontFamily: "SinhalaBold",
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF605454))),
+                fontSize: 20, fontFamily: "SinhalaBold", fontWeight: FontWeight.bold, color: Color(0xFF605454))),
         const SizedBox(height: 20),
         Align(
             alignment: Alignment.bottomCenter,
@@ -832,36 +709,34 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                 height: 10,
                 width: 100,
                 decoration: const BoxDecoration(
-                    color: Color(0xFF9C27B0),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(10))))),
+                    color: Color(0xFF9C27B0), borderRadius: BorderRadius.vertical(top: Radius.circular(10))))),
       ]),
     );
   }
 
   Widget _buildProgressBar(String value, Color color) {
-    double progress = (int.parse(value) / 20).clamp(0.0, 1.0);
+    // 1. Calculate the total answered so far
+    int totalAnswered = _dbCorrect + _dbWrong;
+
+    // 2. Calculate the progress based on accuracy percentage
+    double progress = 0.0;
+    if (totalAnswered > 0) {
+      progress = (int.parse(value) / totalAnswered).clamp(0.0, 1.0);
+    }
+
     return Row(children: [
-      if (color == Colors.red)
-        Text(value,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+      if (color == Colors.red) Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
       const SizedBox(width: 5),
       Container(
           width: 70,
           height: 10,
-          decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
           child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: progress,
-              child: Container(
-                  decoration: BoxDecoration(
-                      color: color, borderRadius: BorderRadius.circular(10))))),
+              child: Container(decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10))))),
       const SizedBox(width: 5),
-      if (color == Colors.green)
-        Text(value,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+      if (color == Colors.green) Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
     ]);
   }
 
@@ -871,23 +746,18 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
       height: 300,
       width: double.infinity,
       decoration: const BoxDecoration(
-          color: Color(0xFF9C27B0),
-          borderRadius: BorderRadius.all(Radius.circular(40))),
+          color: Color(0xFF9C27B0), borderRadius: BorderRadius.all(Radius.circular(40))),
       child: Stack(children: [
         ..._buildFullStarPattern(rows: 6, columns: 4),
         Positioned(
             top: 15,
             right: 25,
             child: Stack(alignment: Alignment.center, children: [
-              const CircleAvatar(
-                  radius: 24, backgroundColor: Color(0xFFFFFFFF)),
+              const CircleAvatar(radius: 24, backgroundColor: Color(0xFFFFFFFF)),
               GestureDetector(
                   onTap: () {
                     _timer?.cancel();
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const ProfileScreen()))
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()))
                         .then((_) {
                       _loadUserAndQuizzes();
                       _startTimer();
@@ -896,8 +766,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                   child: CircleAvatar(
                       radius: 22,
                       backgroundColor: Colors.white24,
-                      backgroundImage: AssetImage((_profileImageUrl == null ||
-                              _profileImageUrl!.isEmpty)
+                      backgroundImage: AssetImage((_profileImageUrl == null || _profileImageUrl!.isEmpty)
                           ? 'Assets/Images/avatar.png'
                           : _profileImageUrl!))),
             ])),
@@ -905,8 +774,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     );
   }
 
-  List<Widget> _buildFullStarPattern(
-      {required int rows, required int columns}) {
+  List<Widget> _buildFullStarPattern({required int rows, required int columns}) {
     List<Widget> stars = [];
     for (int i = 0; i < rows; i++) {
       for (int j = 0; j < columns; j++) {
@@ -915,10 +783,9 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
             left: (j * 110).toDouble() - 10,
             child: Opacity(
                 opacity: 0.2,
-                child: Image.asset('Assets/Images/star2.png',
-                    width: (i + j) % 2 == 0 ? 70 : 40))));
+                child: Image.asset('Assets/Images/star2.png', width: (i + j) % 2 == 0 ? 70 : 40))));
       }
     }
     return stars;
   }
-}// correct
+}
