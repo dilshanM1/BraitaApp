@@ -1,8 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'Services/NotificationService.dart';
+import 'Services/fcm_service.dart';
 import 'firebase_options.dart';
 import 'UI/Screens/SplashScreen.dart';
 import 'Services/DatabaseService.dart';
@@ -16,12 +18,13 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
     statusBarBrightness: Brightness.dark,
   ));
-
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   // 1. Initialize Firebase ONLY ONCE
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  // FCM Notification Service
+  await FCMService.init();
   // 2. Initialize Notification Service
   // This already calls requestPermissions() inside init()
   await NotificationService.init();

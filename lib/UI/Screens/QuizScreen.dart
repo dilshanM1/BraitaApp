@@ -225,7 +225,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
               const SizedBox(height: 20),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text("කෙටි වීඩියෝවක් නරඹා පොයින්ට් 4ක් වැඩිපුර ලබාගන්න\nWatch a short video to collect 4 Points!",
+                child: Text("කෙටි වීඩියෝවක් නරඹා පොයින්ට් 20ක් වැඩිපුර ලබාගන්න\nWatch a short video to collect 20 Points!",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold,)),
               ),
@@ -239,10 +239,10 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                     _adManager.showAd(onRewardEarned: () async {
                       if (mounted) {
                         Navigator.pop(context);
-                        await _updateDatabase(true, points: 4);
+                        await _updateDatabase(true, points: 20);            //reward point count------------>>>>
                         final userSnap = await _dbRef.child('User').child(_deviceId!).get();
                         int currentBalance = (userSnap.value as Map)['MyPoints'] ?? 0;
-                        _showSuccessDialog(4, currentBalance);
+                        _showSuccessDialog(20, currentBalance);             //reward point count------------>>>>
                       }
                     });
                   },
