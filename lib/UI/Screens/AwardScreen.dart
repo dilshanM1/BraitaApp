@@ -31,22 +31,33 @@ class _AwardScreenState extends State<AwardScreen> {
         final data = snapshot.value as Map<dynamic, dynamic>;
         List<Map<String, String>> tempWinners = [];
 
-        data.forEach((key, value) {
-          if (key.toString().startsWith('Post')) {
-            String id = key.toString().replaceAll('Post', '');
-            String captionKey = 'Caption$id';
+        // 1. Get all keys that start with 'Post'
+        List<String> postKeys = data.keys
+            .map((e) => e.toString())
+            .where((key) => key.startsWith('Post'))
+            .toList();
 
-            tempWinners.add({
-              'link': value.toString(),
-              'caption': data[captionKey]?.toString() ?? 'Winner of Competition',
-            });
-          }
+        // 2. Sort keys numerically descending (Post10, Post9, Post8...)
+        postKeys.sort((a, b) {
+          int idA = int.tryParse(a.replaceAll('Post', '')) ?? 0;
+          int idB = int.tryParse(b.replaceAll('Post', '')) ?? 0;
+          return idB.compareTo(idA); // Higher numbers first
         });
+
+        // 3. Build the list using the sorted keys
+        for (var key in postKeys) {
+          String id = key.replaceAll('Post', '');
+          String captionKey = 'Caption$id';
+
+          tempWinners.add({
+            'link': data[key].toString(),
+            'caption': data[captionKey]?.toString() ?? 'Winner of Competition',
+          });
+        }
 
         if (mounted) {
           setState(() {
-            // Reversing the list so the latest winner appears at the top
-            _winnersList = tempWinners.reversed.toList();
+            _winnersList = tempWinners;
             _isLoading = false;
           });
         }

@@ -3,17 +3,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:math'; // Required for random character generation
+import 'dart:math';
 
 class DatabaseService {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final Uuid _uuid = const Uuid();
 
-  // Helper function to generate a unique 8-character ID
   String _generateUserTag() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    Random rnd = Random();
+    const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
+    final rnd = Random.secure();
     return String.fromCharCodes(Iterable.generate(
         8, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
@@ -35,7 +34,12 @@ class DatabaseService {
     }
   }
 
-  Future<void> initializeUser() async {
+  Future<void> updateDeviceId(String newDeviceId) async {
+    await _secureStorage.write(key: 'device_id', value: newDeviceId);
+  }
+
+  // Now returns the UserTag if a new user was created, else returns null
+  Future<String?> initializeUser() async {
     try {
       String deviceId = await getDeviceId();
       String sanitizedId = deviceId.replaceAll(RegExp(r'[.#$\[\]]'), '_');
@@ -44,9 +48,20 @@ class DatabaseService {
 
       if (!userSnapshot.exists) {
         String formattedDate = DateFormat('dd-MM-yyyy').format(DateTime.now());
+        String userTag = '';
+        bool isUnique = false;
 
-        // Generate the new unique 8-character ID
-        String userTag = _generateUserTag();
+        while (!isUnique) {
+          userTag = _generateUserTag();
+          final tagCheck = await _dbRef.child('User')
+              .orderByChild('UserTag')
+              .equalTo(userTag)
+              .get();
+
+          if (!tagCheck.exists) {
+            isUnique = true;
+          }
+        }
 
         await _dbRef.child('User').child(sanitizedId).set({
           'ProfileImage': '',
@@ -56,6 +71,7 @@ class DatabaseService {
           'Gender': 'Gender',
           'PhoneNumber': 'None',
           'UserTag': userTag,
+          'Pin': '', // Initialized as empty
           'TotalCompletedQuizCount': 0,
           'TotalWrongAnsweredQuizCount': 0,
           'TotalCorrectAnsweredQuizCount': 0,
@@ -72,10 +88,12 @@ class DatabaseService {
             }
           },
         });
-        debugPrint("Realtime DB: New visitor created with Tag: $userTag");
+        return userTag;
       }
+      return null;
     } catch (e) {
       debugPrint("Realtime DB Error: $e");
+      return null;
     }
   }
 }
