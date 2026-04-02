@@ -2,6 +2,7 @@ import 'package:braita_new/UI/Screens/AboutScreen.dart';
 import 'package:braita_new/UI/Screens/AvatarSelectScreen.dart';
 import 'package:braita_new/UI/Screens/HomeScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:pinput/pinput.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -108,6 +109,21 @@ class SettingsScreen extends StatelessWidget {
     final DatabaseService dbService = DatabaseService();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
+    // Define the style for the individual PIN boxes to match the previous dialog
+    final defaultPinTheme = PinTheme(
+      width: 45,
+      height: 55,
+      textStyle: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Colors.black,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.grey[300], // Matching your TextField fill color
+        borderRadius: BorderRadius.circular(10),
+      ),
+    );
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -161,11 +177,34 @@ class SettingsScreen extends StatelessWidget {
                           ] else ...[
                             const Text("Enter account number", style: TextStyle(fontWeight: FontWeight.bold)),
                             const Text("ගිණුම් අංකය ඇතුලත් කරන්න", style: TextStyle(fontSize: 11, color: Colors.grey)),
-                            TextField(controller: acController, textAlign: TextAlign.center, decoration: InputDecoration(fillColor: Colors.grey[200], filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
+                            const SizedBox(height: 5),
+                            TextField(
+                                controller: acController,
+                                textAlign: TextAlign.center,
+                                decoration: InputDecoration(
+                                    fillColor: Colors.grey[300],
+                                    filled: true,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)
+                                )
+                            ),
                             const SizedBox(height: 15),
                             const Text("Enter Pin number", style: TextStyle(fontWeight: FontWeight.bold)),
                             const Text("පින් අංකය ඇතුලත් කරන්න", style: TextStyle(fontSize: 11, color: Colors.grey)),
-                            TextField(controller: pinController, textAlign: TextAlign.center, keyboardType: TextInputType.number, obscureText: true, decoration: InputDecoration(fillColor: Colors.grey[200], filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
+                            const SizedBox(height: 10),
+
+                            // --- UPDATED PIN FIELD ---
+                            Pinput(
+                              length: 5,
+                              controller: pinController,
+                              keyboardType: TextInputType.number,
+                              obscureText: true, // PIN remains hidden
+                              defaultPinTheme: defaultPinTheme,
+                              focusedPinTheme: defaultPinTheme.copyWith(
+                                decoration: defaultPinTheme.decoration!.copyWith(
+                                  border: Border.all(color: const Color(0xFF9C27B0), width: 1.5),
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 20),
                           ],
 
@@ -209,7 +248,15 @@ class SettingsScreen extends StatelessWidget {
                             child: Text(isLocked ? "Locked" : "Recover", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                           const SizedBox(height: 10),
-                          ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFAFA9B0), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))), child: const Text("Cancel", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                          ElevatedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFAFA9B0),
+                                  minimumSize: const Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))
+                              ),
+                              child: const Text("Cancel", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                          ),
                         ],
                       ),
                     ),
@@ -257,4 +304,4 @@ class SettingsScreen extends StatelessWidget {
     }
     return stars;
   }
-}
+}//correct
